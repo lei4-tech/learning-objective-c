@@ -51,3 +51,9 @@ cmake --build build
 - 循环引用（Retain Cycle）及其解决方案：互相引用的两端，一端用 `weak`
 
 多文件版本 — [source/04-phase41/](source/04-phase41/)：Category 按 `ClassName+CategoryName.h/.m` 惯例命名；`Boss` 与 `Employee` 互相引用时，用 `@class` 前向声明代替 `#import` 打破头文件循环依赖。
+
+### 阶段五：Objective-C++ 混编 — [source/05-phase5/](source/05-phase5/)
+
+- 入口文件使用 `.mm` 后缀，同一文件中同时使用 C++ 标准库（`std::cout`）与 ObjC 对象
+- ObjC 类定义仍保留在 `.h`/`.m` 文件中，由 `.mm` 文件调用
+- 适用场景：在已有 C++ 工程中逐步接入 ObjC/Cocoa API，或反向在 ObjC 工程中复用 C++ 库
