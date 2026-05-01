@@ -57,3 +57,33 @@ cmake --build build
 - 入口文件使用 `.mm` 后缀，同一文件中同时使用 C++ 标准库（`std::cout`）与 ObjC 对象
 - ObjC 类定义仍保留在 `.h`/`.m` 文件中，由 `.mm` 文件调用
 - 适用场景：在已有 C++ 工程中逐步接入 ObjC/Cocoa API，或反向在 ObjC 工程中复用 C++ 库
+
+### 阶段六：综合实践 — [source/06-phase6/](source/06-phase6/)
+
+macOS OpenGL 绘图应用，综合运用前五阶段全部知识，重点展示四种设计模式。
+
+**功能**：
+- 鼠标点击/拖拽绘制直线、弧线、闭合多边形（含纯色/斜线/网格三种填充）
+- 点击图形选中后，右侧属性面板切换为编辑模式，修改参数即时刷新外观
+- 滚轮缩放（以鼠标为中心）、Option+拖拽平移、重置视图
+- 状态栏实时显示鼠标世界坐标与缩放比例；画布显示点阵网格
+
+**架构**（三层严格隔离）：
+
+```
+ObjC GUI 层 (.m/.mm)     AppDelegate · CanvasView · ControlPanel · ShapeParamPanel
+        ↓ ObjC 消息
+ObjC++ Bridge 层 (.mm)   SceneBridge（C++ ivar，纯 ObjC 接口）
+        ↓ C++ 调用
+C++ Core 层 (.h/.cpp)    Shape · Viewport · Scene · OpenGLRenderer
+                         ShapeFactory · Command · CommandManager · IFillStrategy
+```
+
+**设计模式**：
+
+| 模式 | 位置 | 要点 |
+|------|------|------|
+| 工厂 | `ShapeFactory` | 调用方传参数包 struct，不直接构造具体类 |
+| 命令 | `DrawCommand` + `CommandManager` | `execute`/`undo` 对称；`unique_ptr<Shape>` 所有权在 Command ↔ Scene 间转移 |
+| 策略 | `IFillStrategy` + 三实现 | `ShapePolygon::draw()` 只调用接口；stencil buffer 裁剪纹理线 |
+| 委托 | 三个 `@protocol` | `ControlPanelDelegate`、`ShapeParamPanelDelegate`、`CanvasViewDelegate` |
