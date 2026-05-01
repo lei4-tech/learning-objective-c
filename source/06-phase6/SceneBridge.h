@@ -1,6 +1,5 @@
 #import <Foundation/Foundation.h>
 
-// 填充样式枚举，镜像 C++ 侧的 Strategy 名称
 typedef NS_ENUM(NSInteger, SBFillStyle) {
     SBFillStyleSolid = 0,
     SBFillStyleHatch = 1,
@@ -11,9 +10,10 @@ typedef NS_ENUM(NSInteger, SBFillStyle) {
 // 封装为纯 ObjC 接口，GUI 层无需了解任何 C++ 细节
 @interface SceneBridge : NSObject
 
-// 必须在 OpenGL 上下文激活后调用（由 CanvasView.prepareOpenGL 触发）
+// Must be called once the OpenGL context is active.
 - (void)setup;
 
+// ── Shape creation (via Command history) ─────────────────────────
 - (void)addLineFromX:(float)x1 y:(float)y1
                   toX:(float)x2 y:(float)y2
                colorR:(float)r g:(float)g b:(float)b;
@@ -24,7 +24,6 @@ typedef NS_ENUM(NSInteger, SBFillStyle) {
            endDeg:(float)endDeg
            colorR:(float)r g:(float)g b:(float)b;
 
-// points: NSArray of NSValue(CGPoint)
 - (void)addPolygonWithPoints:(NSArray<NSValue *> *)points
                      strokeR:(float)sr g:(float)sg b:(float)sb
                        fillR:(float)fr g:(float)fg b:(float)fb
@@ -32,10 +31,33 @@ typedef NS_ENUM(NSInteger, SBFillStyle) {
 
 - (void)undo;
 - (BOOL)canUndo;
-
-// 由 CanvasView.drawRect: 调用，执行实际 OpenGL 绘制
-- (void)renderWithViewportWidth:(int)w height:(int)h;
-
 - (void)clearAll;
+
+// ── Selection ────────────────────────────────────────────────────
+// sx/sy: backing-pixel screen coordinates; w/h: backing-pixel viewport size.
+- (BOOL)selectAtScreenX:(float)sx y:(float)sy viewW:(int)w h:(int)h;
+- (void)clearSelection;
+- (NSInteger)selectedShapeType;          // ShapeType enum value cast to NSInteger, or -1
+- (NSDictionary *)selectedShapeProperties;
+
+// Apply edited properties from the param panel to the selected shape.
+- (void)updateSelectedShapeProperties:(NSDictionary *)props;
+
+// ── Preview (uncommitted shape drawn translucent) ─────────────────
+- (void)setPreviewLineFromX:(float)x1 y:(float)y1 toX:(float)x2 y:(float)y2;
+- (void)setPreviewArcCX:(float)cx cy:(float)cy radius:(float)r
+               startDeg:(float)sd endDeg:(float)ed;
+- (void)setPreviewPolygonVertices:(NSArray<NSValue *> *)pts;
+- (void)clearPreview;
+
+// ── Viewport ─────────────────────────────────────────────────────
+- (void)zoomBy:(float)factor atScreenX:(float)sx y:(float)sy viewW:(int)w h:(int)h;
+- (void)panByDX:(float)dx dy:(float)dy;
+- (void)resetViewportWithViewW:(int)w h:(int)h;
+- (float)zoomLevel;
+- (NSPoint)screenToWorldX:(float)sx y:(float)sy viewW:(int)w h:(int)h;
+
+// ── Rendering ────────────────────────────────────────────────────
+- (void)renderWithViewportWidth:(int)w height:(int)h;
 
 @end

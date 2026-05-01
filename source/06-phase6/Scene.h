@@ -11,6 +11,10 @@ public:
     std::unique_ptr<Shape> removeShape(Shape* ptr);
     void clear();
     const std::vector<std::unique_ptr<Shape>>& shapes() const;
+
+    // Hit test in reverse draw order (topmost first). Returns first hit or nullptr.
+    Shape* hitTest(Point2D p, float tol) const;
+
 private:
     std::vector<std::unique_ptr<Shape>> _shapes;
 };

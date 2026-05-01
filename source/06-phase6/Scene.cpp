@@ -21,3 +21,10 @@ void Scene::clear() {
 const std::vector<std::unique_ptr<Shape>>& Scene::shapes() const {
     return _shapes;
 }
+
+Shape* Scene::hitTest(Point2D p, float tol) const {
+    for (auto it = _shapes.rbegin(); it != _shapes.rend(); ++it) {
+        if ((*it)->containsPoint(p, tol)) return it->get();
+    }
+    return nullptr;
+}

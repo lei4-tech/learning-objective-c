@@ -12,4 +12,6 @@ public:
     virtual ~Shape() = default;
     virtual ShapeType type() const = 0;
     virtual void draw() const = 0;
+    // Hit test in world coordinates; tol is pick tolerance in world units.
+    virtual bool containsPoint(Point2D p, float tol) const = 0;
 };

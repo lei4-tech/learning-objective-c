@@ -15,9 +15,23 @@ void ShapeArc::draw() const {
     float endRad   = _endDeg   * static_cast<float>(M_PI) / 180.0f;
     for (int i = 0; i <= kSegments; ++i) {
         float t  = startRad + (endRad - startRad) * i / static_cast<float>(kSegments);
-        float px = _cx + _radius * cosf(t);
-        float py = _cy + _radius * sinf(t);
-        glVertex2f(px, py);
+        glVertex2f(_cx + _radius * cosf(t), _cy + _radius * sinf(t));
     }
     glEnd();
+}
+
+bool ShapeArc::containsPoint(Point2D p, float tol) const {
+    float dx   = p.x - _cx;
+    float dy   = p.y - _cy;
+    float dist = sqrtf(dx * dx + dy * dy);
+    if (fabsf(dist - _radius) > tol) return false;
+
+    float startRad = _startDeg * static_cast<float>(M_PI) / 180.0f;
+    float endRad   = _endDeg   * static_cast<float>(M_PI) / 180.0f;
+    float angle    = atan2f(dy, dx);
+
+    // Normalise angle into [startRad, startRad + span]
+    float span = endRad - startRad;
+    while (angle < startRad) angle += 2.0f * static_cast<float>(M_PI);
+    return angle <= startRad + span + 1e-4f;
 }

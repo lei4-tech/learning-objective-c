@@ -2,53 +2,74 @@
 #import "CanvasView.h"
 #import "SceneBridge.h"
 
-// 列宽常量
-static const CGFloat kCtrlW  = 160.0;
-static const CGFloat kParamW = 220.0;
-static const CGFloat kWinW   = 1060.0;
-static const CGFloat kWinH   = 600.0;
+static const CGFloat kCtrlW   = 160.0;
+static const CGFloat kParamW  = 220.0;
+static const CGFloat kWinW    = 1200.0;
+static const CGFloat kWinH    = 700.0;
+static const CGFloat kStatusH = 24.0;
 
 @implementation AppDelegate
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
     [self setupMenuBar];
 
-    // 1. 创建 Bridge（C++ 核心层在此初始化）
     _bridge = [[SceneBridge alloc] init];
 
-    // 2. 创建窗口
     NSRect frame = NSMakeRect(100, 100, kWinW, kWinH);
     _window = [[NSWindow alloc]
-                initWithContentRect:frame
-                          styleMask:NSWindowStyleMaskTitled |
-                                    NSWindowStyleMaskClosable |
-                                    NSWindowStyleMaskResizable |
-                                    NSWindowStyleMaskMiniaturizable
-                            backing:NSBackingStoreBuffered
-                              defer:NO];
+               initWithContentRect:frame
+                         styleMask:NSWindowStyleMaskTitled |
+                                   NSWindowStyleMaskClosable |
+                                   NSWindowStyleMaskResizable |
+                                   NSWindowStyleMaskMiniaturizable
+                           backing:NSBackingStoreBuffered
+                             defer:NO];
     [_window setTitle:@"06-Phase6：设计模式绘图示例"];
 
-    // 3. 组装三列布局
     CGFloat canvasX = kCtrlW;
     CGFloat canvasW = kWinW - kCtrlW - kParamW;
+    CGFloat canvasH = kWinH - kStatusH;
 
-    // 左：工具面板
-    _controlPanel = [[ControlPanel alloc] initWithFrame:NSMakeRect(0, 0, kCtrlW, kWinH)];
+    // Left: tool panel
+    _controlPanel = [[ControlPanel alloc]
+                     initWithFrame:NSMakeRect(0, 0, kCtrlW, kWinH)];
     _controlPanel.delegate = self;
 
-    // 中：OpenGL 画布
+    // Centre: OpenGL canvas (sits above the status strip)
     NSOpenGLPixelFormat *pf = [CanvasView createPixelFormat];
-    _canvasView = [[CanvasView alloc] initWithFrame:NSMakeRect(canvasX, 0, canvasW, kWinH)
-                                        pixelFormat:pf];
-    _canvasView.bridge = _bridge;
+    _canvasView = [[CanvasView alloc]
+                   initWithFrame:NSMakeRect(canvasX, kStatusH, canvasW, canvasH)
+                     pixelFormat:pf];
+    _canvasView.bridge         = _bridge;
+    _canvasView.canvasDelegate = self;
 
-    // 右：参数面板
-    _paramPanel = [[ShapeParamPanel alloc] initWithFrame:NSMakeRect(canvasX + canvasW, 0, kParamW, kWinH)];
+    // Status strip below canvas
+    NSView *statusBar = [[NSView alloc]
+                         initWithFrame:NSMakeRect(canvasX, 0, canvasW, kStatusH)];
+    statusBar.wantsLayer = YES;
+    statusBar.layer.backgroundColor = [NSColor colorWithRed:0.15 green:0.15
+                                                      blue:0.15 alpha:1.0].CGColor;
+
+    _statusLabel = [[NSTextField alloc]
+                    initWithFrame:NSMakeRect(8, 4, canvasW - 16, 16)];
+    _statusLabel.editable        = NO;
+    _statusLabel.bordered        = NO;
+    _statusLabel.backgroundColor = [NSColor clearColor];
+    _statusLabel.textColor       = [NSColor colorWithWhite:0.65 alpha:1.0];
+    _statusLabel.font            = [NSFont monospacedSystemFontOfSize:10
+                                                               weight:NSFontWeightRegular];
+    _statusLabel.stringValue     = @"x: 0   y: 0 · 100%";
+    [statusBar addSubview:_statusLabel];
+
+    // Right: param panel (full height)
+    _paramPanel = [[ShapeParamPanel alloc]
+                   initWithFrame:NSMakeRect(canvasX + canvasW, 0, kParamW, kWinH)];
     _paramPanel.delegate = self;
 
     NSView *content = _window.contentView;
     [content addSubview:_controlPanel];
     [content addSubview:_canvasView];
+    [content addSubview:statusBar];
     [content addSubview:_paramPanel];
 
     [_window makeKeyAndOrderFront:nil];
@@ -58,24 +79,22 @@ static const CGFloat kWinH   = 600.0;
     return YES;
 }
 
-// ── 菜单栏 ─────────────────────────────────────────────────────────
+// ── Menu bar ─────────────────────────────────────────────────────
 
 - (void)setupMenuBar {
     NSMenu *menuBar = [[NSMenu alloc] init];
 
-    // 应用菜单（第一项）
     NSMenuItem *appItem = [[NSMenuItem alloc] init];
-    NSMenu *appMenu = [[NSMenu alloc] init];
+    NSMenu *appMenu     = [[NSMenu alloc] init];
     [appMenu addItemWithTitle:@"退出" action:@selector(terminate:) keyEquivalent:@"q"];
     [appItem setSubmenu:appMenu];
     [menuBar addItem:appItem];
 
-    // 编辑菜单
     NSMenuItem *editItem = [[NSMenuItem alloc] init];
-    NSMenu *editMenu = [[NSMenu alloc] initWithTitle:@"编辑"];
+    NSMenu *editMenu     = [[NSMenu alloc] initWithTitle:@"编辑"];
     NSMenuItem *undoItem = [[NSMenuItem alloc] initWithTitle:@"撤销"
-                                                       action:@selector(undoAction:)
-                                                keyEquivalent:@"z"];
+                                                      action:@selector(undoAction:)
+                                               keyEquivalent:@"z"];
     undoItem.target = self;
     [editMenu addItem:undoItem];
     [editItem setSubmenu:editMenu];
@@ -88,10 +107,14 @@ static const CGFloat kWinH   = 600.0;
     [_canvasView performUndo];
 }
 
-// ── ControlPanelDelegate ──────────────────────────────────────────
+// ── ControlPanelDelegate ─────────────────────────────────────────
 
 - (void)controlPanel:(id)panel didSelectTool:(CPShapeTool)tool {
-    [_paramPanel switchToTool:tool];
+    [_canvasView setDrawingTool:tool];
+    // For draw tools, switch param panel to draw mode for that tool
+    if (tool >= CPShapeToolLine) {
+        [_paramPanel switchToTool:tool];
+    }
 }
 
 - (void)controlPanelDidRequestUndo:(id)panel {
@@ -100,10 +123,18 @@ static const CGFloat kWinH   = 600.0;
 
 - (void)controlPanelDidRequestClear:(id)panel {
     [_bridge clearAll];
+    [_paramPanel switchToDrawMode];
     [_canvasView setNeedsDisplay:YES];
 }
 
-// ── ShapeParamPanelDelegate ───────────────────────────────────────
+- (void)controlPanelDidRequestResetView:(id)panel {
+    NSRect backing = [_canvasView convertRectToBacking:[_canvasView bounds]];
+    [_bridge resetViewportWithViewW:(int)backing.size.width h:(int)backing.size.height];
+    [_canvasView setNeedsDisplay:YES];
+    _statusLabel.stringValue = @"x: 0   y: 0 · 100%";
+}
+
+// ── ShapeParamPanelDelegate ──────────────────────────────────────
 
 - (void)paramPanelDidRequestDraw:(id)panel {
     NSDictionary *p = [_paramPanel currentParams];
@@ -134,28 +165,49 @@ static const CGFloat kWinH   = 600.0;
         case CPShapeToolPolygon: {
             NSArray<NSValue *> *points = [self parsePointsString:p[@"pointsString"]];
             if (points.count < 3) break;
-
-            CGFloat sr, sg, sb, sa;
+            CGFloat sr, sg, sb, sa, fr, fg, fb, fa;
             [[p[@"strokeColor"] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]]
              getRed:&sr green:&sg blue:&sb alpha:&sa];
-            CGFloat fr, fg, fb, fa;
             [[p[@"fillColor"] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]]
              getRed:&fr green:&fg blue:&fb alpha:&fa];
-
             [_bridge addPolygonWithPoints:points
                                   strokeR:(float)sr g:(float)sg b:(float)sb
                                     fillR:(float)fr g:(float)fg b:(float)fb
                                 fillStyle:(SBFillStyle)[p[@"fillStyle"] integerValue]];
             break;
         }
+        case CPShapeToolSelect:
+            break;
     }
 
     [_canvasView setNeedsDisplay:YES];
 }
 
-// ── 工具方法 ──────────────────────────────────────────────────────
+- (void)paramPanelDidRequestApply:(id)panel {
+    NSDictionary *p = [_paramPanel currentParams];
+    [_bridge updateSelectedShapeProperties:p];
+    [_canvasView setNeedsDisplay:YES];
+}
 
-// 解析 "x1,y1;x2,y2;..." 格式的顶点字符串
+// ── CanvasViewDelegate ───────────────────────────────────────────
+
+- (void)canvasView:(id)cv didSelectShapeType:(NSInteger)type
+        properties:(NSDictionary *)props {
+    [_paramPanel showPropertiesForShapeType:type params:props];
+}
+
+- (void)canvasViewDidDeselectShape:(id)cv {
+    [_paramPanel switchToDrawMode];
+}
+
+- (void)canvasView:(id)cv didMoveToWorldX:(float)x y:(float)y zoomLevel:(float)zoom {
+    NSString *text = [NSString stringWithFormat:@"x: %.0f   y: %.0f · %.0f%%",
+                      x, y, zoom * 100.0f];
+    _statusLabel.stringValue = text;
+}
+
+// ── Utility ──────────────────────────────────────────────────────
+
 - (NSArray<NSValue *> *)parsePointsString:(NSString *)s {
     NSMutableArray *result = [NSMutableArray array];
     for (NSString *pair in [s componentsSeparatedByString:@";"]) {

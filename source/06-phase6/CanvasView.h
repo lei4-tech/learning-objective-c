@@ -1,16 +1,33 @@
 #import <AppKit/AppKit.h>
+#import "ControlPanel.h"
 
 @class SceneBridge;
 
+typedef NS_ENUM(NSInteger, CVDrawingState) {
+    CVStateSelect      = -1,
+    CVStateLineFirst   =  0,
+    CVStateLineDrag    =  1,
+    CVStateArcCenter   =  2,
+    CVStateArcDrag     =  3,
+    CVStatePolyDrawing =  4,
+};
+
+@protocol CanvasViewDelegate <NSObject>
+- (void)canvasView:(id)cv didSelectShapeType:(NSInteger)type
+        properties:(NSDictionary *)props;
+- (void)canvasViewDidDeselectShape:(id)cv;
+- (void)canvasView:(id)cv didMoveToWorldX:(float)x y:(float)y zoomLevel:(float)zoom;
+@end
+
 @interface CanvasView : NSOpenGLView
 
-// AppDelegate 注入 bridge，CanvasView 不持有其创建逻辑
 @property (strong) SceneBridge *bridge;
+@property (weak)   id<CanvasViewDelegate> canvasDelegate;
 
-// 触发撤销并重绘（由 AppDelegate 和 ControlPanel 调用）
+// Called by AppDelegate when the user clicks a tool button.
+- (void)setDrawingTool:(CPShapeTool)tool;
+
 - (void)performUndo;
-
-// 创建带 stencil buffer 的像素格式（供 AppDelegate 构造时传入）
 + (NSOpenGLPixelFormat *)createPixelFormat;
 
 @end
