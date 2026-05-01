@@ -1,15 +1,53 @@
 # Objective-C 快速入门
 
-为了快速入门Objective-C，我们整理了一个分阶段的学习计划。
+面向拥有 C/C++/Java/C# 背景的开发者。核心要点：**Objective-C 不支持类的多继承**，以协议（Protocol）机制替代；内存管理使用 ARC（自动引用计数）；方法调用采用消息传递语法。
 
-针对拥有C/C++/Java/C#等高级语言的学习经历的开发同事，我们必须明确一个关键点：**Objective-C不支持类的多继承**。为了实现类系多继承的功能并降低代码耦合，Objective-C使用的是**协议（Protocol）**机制。此外，Objective-C的内存管理（ARC）和消息传递机制也是入门必须掌握的核心。
+项目使用 CMake 组织所有源代码。
 
-结合这些特点，我们的学习规划可以分为三个阶段：
+## 构建
 
-- **阶段一：基础语法**（变量、条件分支、循环）
+```bash
+cmake -S . -B build
+cmake --build build
+# 产物输出到 bin/
+```
 
-- **阶段二：面向对象**（定义接口**@interface**与实现**@implmentation**、实例化对象）
+## 学习路径
 
-- **阶段三：进阶特性**（协议Protocol、类别Category、ARC内存管理）
+### 阶段一：基础语法 — [source/01-phase1/](source/01-phase1/)
 
-**本项目会尽可能采用CMake组织所有源代码**
+- `NSString`、基本类型变量声明
+- `if/else` 条件分支、`for` 循环
+- `NSLog` 格式化输出（`%@` 对象占位符、`%d` 整数占位符）
+- `@"..."` 与 C 字符串 `"..."` 的区别
+
+### 阶段二：面向对象 — [source/02-phase2/](source/02-phase2/)
+
+单文件版本。涵盖：
+
+- `@interface` / `@implementation` 接口与实现分离
+- `@property` 属性声明
+- `[[ClassName alloc] init]` 对象创建（`alloc` 分配内存，`init` 初始化）
+- `[object message]` 消息传递语法
+- 协议（Protocol）基础：`@protocol`、多协议遵守 `<P1, P2>`
+
+多文件版本 — [source/02-phase21/](source/02-phase21/)：将协议和类拆分为独立 `.h`/`.m` 文件，CMakeLists.txt 使用 `file(GLOB)` 收集源文件。
+
+### 阶段三：协议进阶 — [source/03-phase3/](source/03-phase3/)
+
+单文件版本。在阶段二基础上新增：
+
+- `@required` / `@optional` 修饰协议方法
+- `respondsToSelector:` 运行时检查可选方法是否已实现
+
+多文件版本 — [source/03-phase31/](source/03-phase31/)：协议头文件独立，演示真实工程中协议的组织方式。
+
+### 阶段四：Category 与 ARC — [source/04-phase4/](source/04-phase4/)
+
+单文件版本。涵盖：
+
+- **Category（分类）**：`@interface ClassName (CategoryName)` 为已有类外挂方法，无需源码、无需继承
+- **ARC 内存管理**：`strong` 强引用持有对象，`weak` 弱引用在对象销毁后自动置 `nil`
+- 循环引用（Retain Cycle）及其解决方案：互相引用的两端，一端用 `weak`
+
+多文件版本 — [source/04-phase41/](source/04-phase41/)：Category 按 `ClassName+CategoryName.h/.m` 惯例命名；`Boss` 与 `Employee` 互相引用时，用 `@class` 前向声明代替 `#import` 打破头文件循环依赖。
