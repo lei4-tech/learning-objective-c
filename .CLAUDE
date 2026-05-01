@@ -1,0 +1,32 @@
+# 工程描述
+
+面向有 C/C++/Java/C# 背景开发者的 Objective-C 分阶段学习项目，使用 CMake 组织构建。每个阶段对应 `source/` 下的一个子目录，包含一个独立可执行程序。
+
+# CMake 规范
+
+- 每个阶段目录必须有独立的 `CMakeLists.txt`，新增阶段后同步在 `source/CMakeLists.txt` 追加 `add_subdirectory`
+- 所有目标必须启用 ARC：`target_compile_options(<target> PRIVATE -fobjc-arc)`
+- 所有目标必须链接 Foundation：`target_link_libraries(<target> "-framework Foundation")`
+- 上述两条用 `if(APPLE)` 包裹
+- 构建命令：`cmake -S . -B build && cmake --build build`，产物输出到 `bin/`
+
+# 代码规范
+
+- 每个阶段只有一个 `main.m`，接口、实现、main 函数均写在同一文件中
+- 纯 Objective-C 文件使用 `.m` 后缀，混用 C++ 时使用 `.mm`
+- 不手动调用 `retain` / `release`，依赖 ARC
+- 使用中文注释说明关键语法点，注释面向学习者
+
+# Git Commit 规范
+
+使用 Conventional Commits 格式：`<type>: <subject>`
+
+| type | 适用场景 |
+|------|---------|
+| `feat` | 新增阶段或新增示例代码 |
+| `fix` | 修正示例代码错误 |
+| `docs` | 修改 README 或注释 |
+| `chore` | 修改构建配置、CMakeLists.txt |
+
+- subject 使用中文，简明描述变更内容
+- 示例：`feat: 新增 04-phase4 Category 示例`
