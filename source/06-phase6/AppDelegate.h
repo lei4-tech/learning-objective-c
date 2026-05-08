@@ -2,6 +2,7 @@
 #import "ControlPanel.h"
 #import "ShapeParamPanel.h"
 #import "CanvasView.h"
+#import "TerrainLabelOverlay.h"
 
 @class SceneBridge;
 
@@ -10,11 +11,12 @@
                                    ShapeParamPanelDelegate,
                                    CanvasViewDelegate>
 
-@property (strong) NSWindow        *window;
-@property (strong) CanvasView      *canvasView;
-@property (strong) ControlPanel    *controlPanel;
-@property (strong) ShapeParamPanel *paramPanel;
-@property (strong) SceneBridge     *bridge;
-@property (strong) NSTextField     *statusLabel;
+@property (strong) NSWindow           *window;
+@property (strong) CanvasView         *canvasView;
+@property (strong) ControlPanel       *controlPanel;
+@property (strong) ShapeParamPanel    *paramPanel;
+@property (strong) SceneBridge        *bridge;
+@property (strong) NSTextField        *statusLabel;
+@property (strong) TerrainLabelOverlay *labelOverlay;
 
 @end

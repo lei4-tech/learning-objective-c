@@ -35,13 +35,17 @@ static const CGFloat kStatusH = 24.0;
                      initWithFrame:NSMakeRect(0, 0, kCtrlW, kWinH)];
     _controlPanel.delegate = self;
 
-    // Centre: OpenGL canvas (sits above the status strip)
+    // Centre: OpenGL canvas (above the status strip)
     NSOpenGLPixelFormat *pf = [CanvasView createPixelFormat];
     _canvasView = [[CanvasView alloc]
                    initWithFrame:NSMakeRect(canvasX, kStatusH, canvasW, canvasH)
                      pixelFormat:pf];
     _canvasView.bridge         = _bridge;
     _canvasView.canvasDelegate = self;
+
+    // Transparent label overlay — same frame, sits on top of canvas.
+    _labelOverlay = [[TerrainLabelOverlay alloc]
+                     initWithFrame:NSMakeRect(canvasX, kStatusH, canvasW, canvasH)];
 
     // Status strip below canvas
     NSView *statusBar = [[NSView alloc]
@@ -69,6 +73,7 @@ static const CGFloat kStatusH = 24.0;
     NSView *content = _window.contentView;
     [content addSubview:_controlPanel];
     [content addSubview:_canvasView];
+    [content addSubview:_labelOverlay];    // on top of canvas, transparent
     [content addSubview:statusBar];
     [content addSubview:_paramPanel];
 
@@ -79,7 +84,7 @@ static const CGFloat kStatusH = 24.0;
     return YES;
 }
 
-// ── Menu bar ─────────────────────────────────────────────────────
+// ── Menu bar ──────────────────────────────────────────────────────
 
 - (void)setupMenuBar {
     NSMenu *menuBar = [[NSMenu alloc] init];
@@ -107,13 +112,15 @@ static const CGFloat kStatusH = 24.0;
     [_canvasView performUndo];
 }
 
-// ── ControlPanelDelegate ─────────────────────────────────────────
+// ── ControlPanelDelegate ──────────────────────────────────────────
 
 - (void)controlPanel:(id)panel didSelectTool:(CPShapeTool)tool {
     [_canvasView setDrawingTool:tool];
-    // For draw tools, switch param panel to draw mode for that tool
     if (tool >= CPShapeToolLine) {
         [_paramPanel switchToTool:tool];
+    } else {
+        // Select tool — show draw mode for whatever tool was last visible.
+        [_paramPanel switchToDrawMode];
     }
 }
 
@@ -134,7 +141,7 @@ static const CGFloat kStatusH = 24.0;
     _statusLabel.stringValue = @"x: 0   y: 0 · 100%";
 }
 
-// ── ShapeParamPanelDelegate ──────────────────────────────────────
+// ── ShapeParamPanelDelegate ───────────────────────────────────────
 
 - (void)paramPanelDidRequestDraw:(id)panel {
     NSDictionary *p = [_paramPanel currentParams];
@@ -176,10 +183,9 @@ static const CGFloat kStatusH = 24.0;
                                 fillStyle:(SBFillStyle)[p[@"fillStyle"] integerValue]];
             break;
         }
-        case CPShapeToolSelect:
+        default:
             break;
     }
-
     [_canvasView setNeedsDisplay:YES];
 }
 
@@ -189,7 +195,32 @@ static const CGFloat kStatusH = 24.0;
     [_canvasView setNeedsDisplay:YES];
 }
 
-// ── CanvasViewDelegate ───────────────────────────────────────────
+- (void)paramPanelDidRequestClearTerrain:(id)panel {
+    [_bridge clearElevationData];
+    [_bridge clearBoundary];
+    [_paramPanel updateElevationPointCount:0];
+    [_paramPanel updateBoundaryVertexCount:0];
+    [_labelOverlay setLabels:@[]];
+    [_canvasView setNeedsDisplay:YES];
+}
+
+- (void)paramPanelDidRequestClearBoundary:(id)panel {
+    [_bridge clearBoundary];
+    [_paramPanel updateBoundaryVertexCount:0];
+    [_canvasView setNeedsDisplay:YES];
+}
+
+- (void)paramPanelDidChangeContourInterval:(id)panel interval:(float)v {
+    [_bridge setContourInterval:v];
+    [_canvasView setNeedsDisplay:YES];
+}
+
+- (void)paramPanelDidChangeColorScheme:(id)panel scheme:(NSInteger)s {
+    [_bridge setColorScheme:s];
+    [_canvasView setNeedsDisplay:YES];
+}
+
+// ── CanvasViewDelegate ────────────────────────────────────────────
 
 - (void)canvasView:(id)cv didSelectShapeType:(NSInteger)type
         properties:(NSDictionary *)props {
@@ -201,12 +232,46 @@ static const CGFloat kStatusH = 24.0;
 }
 
 - (void)canvasView:(id)cv didMoveToWorldX:(float)x y:(float)y zoomLevel:(float)zoom {
-    NSString *text = [NSString stringWithFormat:@"x: %.0f   y: %.0f · %.0f%%",
-                      x, y, zoom * 100.0f];
-    _statusLabel.stringValue = text;
+    _statusLabel.stringValue = [NSString stringWithFormat:@"x: %.0f   y: %.0f · %.0f%%",
+                                x, y, zoom * 100.0f];
 }
 
-// ── Utility ──────────────────────────────────────────────────────
+- (void)canvasViewDidFinishFrame:(id)cv {
+    NSRect backing = [_canvasView convertRectToBacking:[_canvasView bounds]];
+    CGFloat scale  = [_canvasView.window backingScaleFactor];
+    int w = (int)backing.size.width, h = (int)backing.size.height;
+
+    NSArray<NSDictionary *> *worldLabels = [_bridge terrainLabelWorldPositions];
+    NSMutableArray *viewLabels = [NSMutableArray arrayWithCapacity:worldLabels.count];
+
+    for (NSDictionary *wl in worldLabels) {
+        NSPoint vp = [_bridge worldToViewX:[wl[@"wx"] floatValue]
+                                         y:[wl[@"wy"] floatValue]
+                                      viewW:w h:h scaleFactor:scale];
+        // Bounds check (vp is in canvas-view logical coordinates, origin bottom-left).
+        NSRect cb = _canvasView.bounds;
+        if (vp.x < 0 || vp.x > cb.size.width || vp.y < 0 || vp.y > cb.size.height)
+            continue;
+
+        [viewLabels addObject:@{
+            @"x":         @(vp.x),
+            @"y":         @(vp.y),
+            @"text":      wl[@"text"],
+            @"isContour": wl[@"isContour"],
+        }];
+    }
+
+    [_labelOverlay setLabels:viewLabels];
+}
+
+- (void)canvasViewTerrainDidChange:(id)cv {
+    [_paramPanel updateElevationPointCount:[_bridge elevationPointCount]];
+    [_paramPanel updateBoundaryVertexCount:[_bridge boundaryVertexCount]];
+    // Immediately refresh label overlay with updated terrain data.
+    [self canvasViewDidFinishFrame:cv];
+}
+
+// ── Utility ───────────────────────────────────────────────────────
 
 - (NSArray<NSValue *> *)parsePointsString:(NSString *)s {
     NSMutableArray *result = [NSMutableArray array];
