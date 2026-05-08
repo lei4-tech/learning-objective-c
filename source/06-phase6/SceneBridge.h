@@ -34,16 +34,13 @@ typedef NS_ENUM(NSInteger, SBFillStyle) {
 - (void)clearAll;
 
 // ── Selection ────────────────────────────────────────────────────
-// sx/sy: backing-pixel screen coordinates; w/h: backing-pixel viewport size.
 - (BOOL)selectAtScreenX:(float)sx y:(float)sy viewW:(int)w h:(int)h;
 - (void)clearSelection;
-- (NSInteger)selectedShapeType;          // ShapeType enum value cast to NSInteger, or -1
+- (NSInteger)selectedShapeType;
 - (NSDictionary *)selectedShapeProperties;
-
-// Apply edited properties from the param panel to the selected shape.
 - (void)updateSelectedShapeProperties:(NSDictionary *)props;
 
-// ── Preview (uncommitted shape drawn translucent) ─────────────────
+// ── Preview ──────────────────────────────────────────────────────
 - (void)setPreviewLineFromX:(float)x1 y:(float)y1 toX:(float)x2 y:(float)y2;
 - (void)setPreviewArcCX:(float)cx cy:(float)cy radius:(float)r
                startDeg:(float)sd endDeg:(float)ed;
@@ -56,6 +53,32 @@ typedef NS_ENUM(NSInteger, SBFillStyle) {
 - (void)resetViewportWithViewW:(int)w h:(int)h;
 - (float)zoomLevel;
 - (NSPoint)screenToWorldX:(float)sx y:(float)sy viewW:(int)w h:(int)h;
+
+// ── Terrain / Elevation ──────────────────────────────────────────
+
+// Add a single elevation point; triggers grid+contour recompute on next render.
+- (void)addElevationPointX:(float)x y:(float)y elevation:(float)z;
+- (void)removeLastElevationPoint;
+- (void)clearElevationData;
+- (NSInteger)elevationPointCount;
+
+// Terrain display parameters (trigger lazy recompute).
+- (void)setContourInterval:(float)interval;
+- (void)setColorScheme:(NSInteger)scheme;
+
+// Closed boundary polygon — clips terrain fill, contours, and labels.
+- (void)setBoundaryVertices:(NSArray<NSValue *> *)pts;
+- (void)clearBoundary;
+- (NSInteger)boundaryVertexCount;
+
+// Returns label descriptors for the overlay view (call after render).
+// Each dict: @{@"wx": NSNumber, @"wy": NSNumber,
+//             @"text": NSString, @"isContour": NSNumber (BOOL)}
+- (NSArray<NSDictionary *> *)terrainLabelWorldPositions;
+
+// Convert world coordinates to NSView logical-point coordinates in the canvas.
+// w/h: backing-pixel dimensions; s: backingScaleFactor.
+- (NSPoint)worldToViewX:(float)wx y:(float)wy viewW:(int)w h:(int)h scaleFactor:(CGFloat)s;
 
 // ── Rendering ────────────────────────────────────────────────────
 - (void)renderWithViewportWidth:(int)w height:(int)h;
