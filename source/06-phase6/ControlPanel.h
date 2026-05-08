@@ -1,10 +1,12 @@
 #import <Cocoa/Cocoa.h>
 
 typedef NS_ENUM(NSInteger, CPShapeTool) {
-    CPShapeToolSelect  = -1,
-    CPShapeToolLine    =  0,
-    CPShapeToolArc     =  1,
-    CPShapeToolPolygon =  2,
+    CPShapeToolSelect   = -1,
+    CPShapeToolLine     =  0,
+    CPShapeToolArc      =  1,
+    CPShapeToolPolygon  =  2,
+    CPShapeToolElevPt   =  3,  // terrain: place elevation point
+    CPShapeToolBoundary =  4,  // terrain: draw clipping boundary
 };
 
 @protocol ControlPanelDelegate <NSObject>

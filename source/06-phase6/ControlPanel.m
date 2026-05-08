@@ -20,30 +20,28 @@ static NSColor *textColor()  { return [NSColor colorWithWhite:0.88 alpha:1.0]; }
     return self;
 }
 
-// Helper: create a styled tool button.
 - (NSButton *)makeButtonTitle:(NSString *)title tag:(NSInteger)tag y:(CGFloat)y {
     NSButton *btn = [[NSButton alloc] initWithFrame:NSMakeRect(10, y, 140, 34)];
-    btn.bezelStyle  = NSBezelStyleRounded;
-    btn.buttonType  = NSButtonTypeMomentaryLight;
-    btn.tag         = tag;
-    btn.target      = self;
-    btn.action      = @selector(buttonClicked:);
+    btn.bezelStyle = NSBezelStyleRounded;
+    btn.buttonType = NSButtonTypeMomentaryLight;
+    btn.tag        = tag;
+    btn.target     = self;
+    btn.action     = @selector(buttonClicked:);
 
     NSMutableParagraphStyle *para = [[NSMutableParagraphStyle alloc] init];
     [para setAlignment:NSTextAlignmentCenter];
-    NSAttributedString *attrTitle = [[NSAttributedString alloc]
+    [btn setAttributedTitle:[[NSAttributedString alloc]
         initWithString:title
             attributes:@{ NSForegroundColorAttributeName: textColor(),
                           NSParagraphStyleAttributeName:  para,
-                          NSFontAttributeName: [NSFont systemFontOfSize:13] }];
-    [btn setAttributedTitle:attrTitle];
+                          NSFontAttributeName: [NSFont systemFontOfSize:13] }]];
     return btn;
 }
 
 - (void)setupButtons {
     CGFloat y = self.bounds.size.height - 40;
 
-    // Section header "TOOLS"
+    // ── Drawing tools ──────────────────────────────────────────────
     [self addSubview:[self sectionLabel:@"TOOLS" y:y]]; y -= 28;
 
     struct { NSString *t; NSInteger tag; } tools[] = {
@@ -52,7 +50,6 @@ static NSColor *textColor()  { return [NSColor colorWithWhite:0.88 alpha:1.0]; }
         { @"弧线",   CPShapeToolArc     },
         { @"多边形", CPShapeToolPolygon },
     };
-
     NSMutableArray *btns = [NSMutableArray array];
     for (int i = 0; i < 4; i++) {
         NSButton *btn = [self makeButtonTitle:tools[i].t tag:tools[i].tag y:y];
@@ -60,17 +57,36 @@ static NSColor *textColor()  { return [NSColor colorWithWhite:0.88 alpha:1.0]; }
         [btns addObject:btn];
         y -= 40;
     }
+
+    // ── Terrain tools ──────────────────────────────────────────────
+    NSBox *sep1 = [[NSBox alloc] initWithFrame:NSMakeRect(10, y + 6, 140, 1)];
+    sep1.boxType = NSBoxSeparator;
+    [self addSubview:sep1];
+    y -= 16;
+
+    [self addSubview:[self sectionLabel:@"地形 / TERRAIN" y:y]]; y -= 28;
+
+    struct { NSString *t; NSInteger tag; } terrain[] = {
+        { @"高程点", CPShapeToolElevPt   },
+        { @"边界线", CPShapeToolBoundary },
+    };
+    for (int i = 0; i < 2; i++) {
+        NSButton *btn = [self makeButtonTitle:terrain[i].t tag:terrain[i].tag y:y];
+        [self addSubview:btn];
+        [btns addObject:btn];
+        y -= 40;
+    }
+
     _toolButtons = [btns copy];
     _selectedTag = CPShapeToolSelect;
     [self updateButtonAppearance];
 
-    // Separator
-    NSBox *sep = [[NSBox alloc] initWithFrame:NSMakeRect(10, y + 6, 140, 1)];
-    sep.boxType = NSBoxSeparator;
-    [self addSubview:sep];
+    // ── Actions ────────────────────────────────────────────────────
+    NSBox *sep2 = [[NSBox alloc] initWithFrame:NSMakeRect(10, y + 6, 140, 1)];
+    sep2.boxType = NSBoxSeparator;
+    [self addSubview:sep2];
     y -= 16;
 
-    // Section header "ACTIONS"
     [self addSubview:[self sectionLabel:@"ACTIONS" y:y]]; y -= 28;
 
     struct { NSString *t; SEL action; } actions[] = {
@@ -87,12 +103,11 @@ static NSColor *textColor()  { return [NSColor colorWithWhite:0.88 alpha:1.0]; }
 
         NSMutableParagraphStyle *para = [[NSMutableParagraphStyle alloc] init];
         [para setAlignment:NSTextAlignmentCenter];
-        NSAttributedString *at = [[NSAttributedString alloc]
+        [btn setAttributedTitle:[[NSAttributedString alloc]
             initWithString:actions[i].t
                 attributes:@{ NSForegroundColorAttributeName: textColor(),
                               NSParagraphStyleAttributeName:  para,
-                              NSFontAttributeName: [NSFont systemFontOfSize:13] }];
-        [btn setAttributedTitle:at];
+                              NSFontAttributeName: [NSFont systemFontOfSize:13] }]];
         [self addSubview:btn];
         y -= 40;
     }
@@ -100,12 +115,12 @@ static NSColor *textColor()  { return [NSColor colorWithWhite:0.88 alpha:1.0]; }
 
 - (NSTextField *)sectionLabel:(NSString *)text y:(CGFloat)y {
     NSTextField *lbl = [[NSTextField alloc] initWithFrame:NSMakeRect(10, y, 140, 16)];
-    lbl.stringValue       = text;
-    lbl.editable          = NO;
-    lbl.bordered          = NO;
-    lbl.backgroundColor   = [NSColor clearColor];
-    lbl.textColor         = [NSColor colorWithWhite:0.5 alpha:1.0];
-    lbl.font              = [NSFont systemFontOfSize:9 weight:NSFontWeightSemibold];
+    lbl.stringValue     = text;
+    lbl.editable        = NO;
+    lbl.bordered        = NO;
+    lbl.backgroundColor = [NSColor clearColor];
+    lbl.textColor       = [NSColor colorWithWhite:0.5 alpha:1.0];
+    lbl.font            = [NSFont systemFontOfSize:9 weight:NSFontWeightSemibold];
     return lbl;
 }
 
@@ -121,12 +136,11 @@ static NSColor *textColor()  { return [NSColor colorWithWhite:0.88 alpha:1.0]; }
         NSMutableParagraphStyle *para = [[NSMutableParagraphStyle alloc] init];
         [para setAlignment:NSTextAlignmentCenter];
         NSColor *tc = active ? [NSColor whiteColor] : textColor();
-        NSAttributedString *at = [[NSAttributedString alloc]
+        [btn setAttributedTitle:[[NSAttributedString alloc]
             initWithString:btn.title
                 attributes:@{ NSForegroundColorAttributeName: tc,
                               NSParagraphStyleAttributeName:  para,
-                              NSFontAttributeName: [NSFont systemFontOfSize:13] }];
-        [btn setAttributedTitle:at];
+                              NSFontAttributeName: [NSFont systemFontOfSize:13] }]];
     }
 }
 
